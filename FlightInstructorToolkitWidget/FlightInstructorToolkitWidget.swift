@@ -8,16 +8,16 @@ struct FlightInstructorToolkitWidget: Widget {
             // Lock Screen / Dynamic Island view
             VStack {
                 Text("Flight Timer")
-                    .font(.headline)
+                    .font(.title2)
                 Text("\(elapsedString(context.state.elapsedTime))")
-                    .font(.title)
+                    .font(.largeTitle)
             }
             .padding()
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.center) {
                     Text("Flight: \(elapsedString(context.state.elapsedTime))")
-                        .font(.headline)
+                        .font(.title2)
                 }
             } compactLeading: {
                 Text("✈️")
