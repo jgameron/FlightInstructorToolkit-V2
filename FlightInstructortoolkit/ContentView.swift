@@ -5,6 +5,7 @@ struct ContentView: View {
     @State private var timerRunning = false
     @State private var startTime: Date?
     @State private var elapsed: TimeInterval = 0
+    @State private var pauseStartTime: Date?
     @State private var studentLandings = 0
     @State private var instructorLandings = 0
     @State private var hobbsStart = ""
@@ -13,18 +14,22 @@ struct ContentView: View {
     @State private var tachEnd = ""
     @State private var elapsedStart = ""
     @State private var elapsedEnd = ""
-    
+
     @State private var activity: Activity<FlightActivityAttributes>?
+    @State private var currentTime = Date()
+    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
                 Text("Flight Instructor Toolkit")
                     .font(.largeTitle)
-                
+
                 // Flight Timer
                 GroupBox(label: Text("Flight Timer")) {
                     Text(elapsedTimeString())
+                        .font(.title)
+                    Text("Pause: \(pauseTimeString())")
                         .font(.title)
                     HStack {
                         Button("Start Timer") { startTimer() }
@@ -87,37 +92,53 @@ struct ContentView: View {
             }
             .padding()
         }
+        .onReceive(timer) { time in
+            currentTime = time
+            let running = timerRunning ? elapsed + time.timeIntervalSince(startTime ?? time) : elapsed
+            activity?.update(using: FlightActivityAttributes.ContentState(elapsedTime: running))
+        }
     }
     
     func elapsedTimeString() -> String {
-        let time = timerRunning ? Date().timeIntervalSince(startTime ?? Date()) : elapsed
+        let time = timerRunning ? elapsed + currentTime.timeIntervalSince(startTime ?? currentTime) : elapsed
         let hrs = Int(time) / 3600
         let mins = (Int(time) % 3600) / 60
         let secs = Int(time) % 60
-        let decimal = floor((time / 3600) * 100) / 100
-        return String(format: "%.2f hrs | %02d:%02d:%02d", decimal, hrs, mins, secs)
+        return String(format: "%02d:%02d:%02d", hrs, mins, secs)
     }
-    
+
+    func pauseTimeString() -> String {
+        guard !timerRunning, let pauseStart = pauseStartTime else { return "00:00:00" }
+        let time = currentTime.timeIntervalSince(pauseStart)
+        let hrs = Int(time) / 3600
+        let mins = (Int(time) % 3600) / 60
+        let secs = Int(time) % 60
+        return String(format: "%02d:%02d:%02d", hrs, mins, secs)
+    }
+
     func startTimer() {
-        startTime = Date()
+        startTime = currentTime
         timerRunning = true
+        pauseStartTime = nil
         activity = try? Activity<FlightActivityAttributes>.request(
             attributes: FlightActivityAttributes(),
-            contentState: FlightActivityAttributes.ContentState(elapsedTime: 0),
+            contentState: FlightActivityAttributes.ContentState(elapsedTime: elapsed),
             pushType: nil)
     }
-    
+
     func stopTimer() {
         if let start = startTime {
-            elapsed += Date().timeIntervalSince(start)
+            elapsed += currentTime.timeIntervalSince(start)
         }
         timerRunning = false
+        pauseStartTime = currentTime
         activity?.end(dismissalPolicy: .immediate)
     }
-    
+
     func resetTimer() {
         startTime = nil
         elapsed = 0
+        pauseStartTime = nil
         timerRunning = false
         activity?.end(dismissalPolicy: .immediate)
     }
